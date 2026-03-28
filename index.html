@@ -3,77 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rahul Maida Study Portal</title>
+    <title>Rahul Maida Study - Portal</title>
+    <!-- Scripts -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const API_URL = "https://rahulmaidastudy-backend-1.onrender.com"; // <-- APNA URL YAHA CHECK KAREIN
+        const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com"; // UPDATE THIS
 
         function App() {
-            const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
-            const [phone, setPhone] = useState("");
-            const [otp, setOtp] = useState("");
-            const [step, setStep] = useState(1); // 1: Phone, 2: OTP
+            const [user, setUser] = useState(localStorage.getItem('token'));
+            const [step, setStep] = useState('login'); // login, otp, home
+            const [phone, setPhone] = useState('');
+            const [otp, setOtp] = useState('');
+            const [loading, setLoading] = useState(false);
             const [batches, setBatches] = useState([]);
 
-            const handleSendOtp = async () => {
-                const res = await fetch(`${API_URL}/api/auth/send-otp`, {
+            // Send OTP
+            const handleSendOTP = async () => {
+                setLoading(true);
+                const res = await fetch(`${API_BASE}/api/login/send-otp`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber: phone })
                 });
                 const data = await res.json();
-                if(data.status) setStep(2); else alert("Error!");
+                if(data.success) setStep('otp');
+                else alert("Error: Make sure you are registered on PW");
+                setLoading(false);
             };
 
-            const handleVerifyOtp = async () => {
-                const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
+            // Verify OTP
+            const handleVerifyOTP = async () => {
+                setLoading(true);
+                const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone, otp })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber: phone, otp: otp })
                 });
                 const data = await res.json();
-                if(data.status) {
-                    localStorage.setItem('user', JSON.stringify(data.data));
-                    setUser(data.data);
+                if(data.success) {
+                    localStorage.setItem('token', `Bearer ${data.data.token}`);
+                    setUser(data.data.token);
+                    setStep('home');
                 } else {
-                    alert("Ghalat OTP!");
+                    alert("Wrong OTP!");
                 }
+                setLoading(false);
             };
 
-            useEffect(() => {
-                if(user) {
-                    fetch(`${API_URL}/api/batches`, {
-                        headers: { 'Authorization': `Bearer ${user.token}` }
-                    })
-                    .then(res => res.json())
-                    .then(json => setBatches(json.data || []));
-                }
-            }, [user]);
-
-            if (!user) {
+            if (!user && step === 'login') {
                 return (
-                    <div className="flex items-center justify-center h-screen p-4">
-                        <div className="bg-gray-800 p-8 rounded-xl w-full max-w-md shadow-2xl border border-blue-500/30">
-                            <h2 className="text-2xl font-bold mb-6 text-center text-blue-400">Rahul Maida Login</h2>
-                            {step === 1 ? (
-                                <div>
-                                    <input type="text" placeholder="Phone Number" className="w-full p-3 bg-gray-700 rounded mb-4 outline-none border border-transparent focus:border-blue-500" value={phone} onChange={e => setPhone(e.target.value)} />
-                                    <button onClick={handleSendOtp} className="w-full bg-blue-600 p-3 rounded font-bold hover:bg-blue-700">Send OTP</button>
-                                </div>
-                            ) : (
-                                <div>
-                                    <input type="text" placeholder="Enter OTP" className="w-full p-3 bg-gray-700 rounded mb-4 outline-none border border-transparent focus:border-blue-500" value={otp} onChange={e => setOtp(e.target.value)} />
-                                    <button onClick={handleVerifyOtp} className="w-full bg-green-600 p-3 rounded font-bold hover:bg-green-700">Verify & Login</button>
-                                </div>
-                            )}
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="glass p-8 rounded-2xl w-full max-w-md text-center">
+                            <h2 className="text-3xl font-bold mb-6 text-blue-400">Rahul Maida Study</h2>
+                            <p className="mb-6 text-gray-400">Login with PW Registered Number</p>
+                            <input 
+                                type="text" placeholder="Phone Number (10 digit)" 
+                                className="w-full p-3 mb-4 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                                onChange={(e) => setPhone(e.target.value)}
+                            />
+                            <button 
+                                onClick={handleSendOTP} disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition-all"
+                            >
+                                {loading ? 'Sending...' : 'Send OTP'}
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!user && step === 'otp') {
+                return (
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="glass p-8 rounded-2xl w-full max-w-md text-center">
+                            <h2 className="text-2xl font-bold mb-4">Enter OTP</h2>
+                            <input 
+                                type="text" placeholder="6 Digit OTP" 
+                                className="w-full p-3 mb-4 bg-slate-800 border border-slate-700 rounded-lg text-white text-center text-xl tracking-widest"
+                                onChange={(e) => setOtp(e.target.value)}
+                            />
+                            <button 
+                                onClick={handleVerifyOTP} disabled={loading}
+                                className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-bold"
+                            >
+                                {loading ? 'Verifying...' : 'Login Now'}
+                            </button>
                         </div>
                     </div>
                 );
@@ -81,20 +107,13 @@
 
             return (
                 <div className="p-6">
-                    <div className="flex justify-between mb-8 items-center bg-gray-800 p-4 rounded-lg">
-                        <h1 className="text-xl font-bold italic text-blue-400">Rahul Maida Study</h1>
-                        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="text-red-400 text-sm">Logout</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {batches.map(b => (
-                            <div key={b._id} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                                <img src={b.batchImage} className="w-full h-40 object-cover" />
-                                <div className="p-4">
-                                    <h3 className="font-bold">{b.batchName}</h3>
-                                    <button className="mt-4 w-full bg-blue-600 py-2 rounded text-sm">Explore Content</button>
-                                </div>
-                            </div>
-                        ))}
+                    <nav className="flex justify-between items-center mb-10">
+                        <h1 className="text-2xl font-bold italic text-blue-400">RAHUL MAIDA STUDY</h1>
+                        <button onClick={() => { localStorage.clear(); location.reload(); }} className="text-red-400 underline">Logout</button>
+                    </nav>
+                    <div className="text-center py-20">
+                        <h2 className="text-3xl mb-4">Welcome to Your Portal!</h2>
+                        <p className="text-gray-400">Batches will appear here after sync.</p>
                     </div>
                 </div>
             );
