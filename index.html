@@ -3,31 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rahul Maida Study</title>
+    <title>Study Portal</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; min-height: screen; }
-        .box { background: #1e293b; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-    </style>
 </head>
-<body class="bg-[#020617] h-screen">
+<body class="bg-[#020617] text-white flex items-center justify-center h-screen">
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState } = React;
         const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com"; 
-
-        // Fix Random ID for session consistency
-        const getRID = () => {
-            let rid = localStorage.getItem('login_rid');
-            if(!rid) {
-                rid = "dd85b4b1-abad-4e01-b3ae-3dfc63cba741"; // Your trace ID as base
-                localStorage.setItem('login_rid', rid);
-            }
-            return rid;
-        }
 
         function App() {
             const [phone, setPhone] = useState('');
@@ -35,30 +21,30 @@
             const [step, setStep] = useState(1);
             const [loading, setLoading] = useState(false);
 
-            const send = async () => {
+            const onSend = async () => {
                 setLoading(true);
                 const r = await fetch(`${API_BASE}/api/login/send-otp`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phoneNumber: phone, randomId: getRID() })
+                    body: JSON.stringify({ phoneNumber: phone })
                 });
                 const d = await r.json();
-                if(d.success) setStep(2); else alert(d.message || "Retry");
+                if(d.success) setStep(2); else alert(d.message || "Failed to send");
                 setLoading(false);
             }
 
-            const verify = async () => {
+            const onVerify = async () => {
                 setLoading(true);
                 const r = await fetch(`${API_BASE}/api/login/verify-otp`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phoneNumber: phone, otp: otp, randomId: getRID() })
+                    body: JSON.stringify({ phoneNumber: phone, otp: otp })
                 });
                 const d = await r.json();
                 if(d.success) {
-                    alert("SHABASH! Login ho gaya.");
                     localStorage.setItem('token', d.data.token);
-                    window.location.href = "/study";
+                    alert("LOGIN SUCCESS!");
+                    window.location.reload();
                 } else {
                     alert(d.message || "OTP Galat Hai!");
                 }
@@ -66,26 +52,35 @@
             }
 
             return (
-                <div className="box p-8 rounded-[30px] w-full max-w-sm">
-                    <h1 className="text-2xl font-bold text-center text-blue-400 mb-8 tracking-tight">RAHUL MAIDA STUDY</h1>
+                <div className="bg-[#1e293b] p-8 rounded-3xl w-full max-w-sm border border-slate-700 shadow-2xl">
+                    <h1 className="text-2xl font-bold text-center text-blue-400 mb-8">RAHUL MAIDA STUDY</h1>
+                    
                     {step === 1 ? (
                         <div className="space-y-4">
-                            <input autoComplete="off" type="tel" placeholder="Mobile Number" className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-xl outline-none" onChange={e => setPhone(e.target.value)} />
-                            <button onClick={send} disabled={loading} className="w-full bg-blue-600 p-4 rounded-xl font-bold">{loading ? "Bhej rahe hain..." : "Get OTP"}</button>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
+                            <input 
+                                type="tel" name="p-number" autoComplete="off"
+                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-xl outline-none" 
+                                placeholder="Enter Number" onChange={e => setPhone(e.target.value)} 
+                            />
+                            <button onClick={onSend} className="w-full bg-blue-600 p-4 rounded-xl font-bold">Get OTP</button>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <input autoComplete="off" type="text" placeholder="Enter 6-Digit OTP" className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-2xl tracking-[5px] outline-none" onChange={e => setOtp(e.target.value)} />
-                            <button onClick={verify} disabled={loading} className="w-full bg-green-600 p-4 rounded-xl font-bold">{loading ? "Check kar rahe hain..." : "Verify OTP"}</button>
-                            <p onClick={()=>setStep(1)} className="text-center text-slate-500 text-sm cursor-pointer">Re-enter Number</p>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Enter OTP</label>
+                            <input 
+                                type="text" name="otp-code" autoComplete="one-time-code" inputMode="numeric"
+                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-2xl tracking-[10px] outline-none" 
+                                placeholder="000000" value={otp} onChange={e => setOtp(e.target.value)} 
+                            />
+                            <button onClick={onVerify} className="w-full bg-green-600 p-4 rounded-xl font-bold">Verify & Login</button>
+                            <p onClick={()=>setStep(1)} className="text-center text-slate-500 text-sm cursor-pointer underline">Back</p>
                         </div>
                     )}
                 </div>
             );
         }
-        
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
