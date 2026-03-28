@@ -2,83 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Rahul Maida Study - Secure Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rahul Maida Study Portal</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid #1e293b; }
-        input { background: #1e293b !important; color: white !important; border: 1px solid #334155 !important; }
-    </style>
 </head>
-<body class="bg-[#0b0f19] text-white">
+<body class="bg-gray-900 text-white">
     <div id="root"></div>
 
-    <script type="module">
-        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
-        import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-
-        const API_URL = "https://rahulmaidastudy-backend-1.onrender.com";
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const API_URL = "https://rahulmaidastudy-backend-1.onrender.com"; // <-- APNA URL YAHA CHECK KAREIN
 
         function App() {
-            const [phone, setPhone] = useState('');
-            const [otp, setOtp] = useState('');
-            const [step, setStep] = useState('login'); // login, otp, dashboard
-            const [token, setToken] = useState(localStorage.getItem('pw_token'));
+            const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+            const [phone, setPhone] = useState("");
+            const [otp, setOtp] = useState("");
+            const [step, setStep] = useState(1); // 1: Phone, 2: OTP
+            const [batches, setBatches] = useState([]);
 
-            const handleSendOTP = async () => {
-                const res = await fetch(`${API_URL}/api/login/send-otp`, {
+            const handleSendOtp = async () => {
+                const res = await fetch(`${API_URL}/api/auth/send-otp`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ phone })
                 });
                 const data = await res.json();
-                if(data.success) setStep('otp');
-                else alert("Pehle PW App me register karein!");
+                if(data.status) setStep(2); else alert("Error!");
             };
 
-            const handleVerifyOTP = async () => {
-                const res = await fetch(`${API_URL}/api/login/verify-otp`, {
+            const handleVerifyOtp = async () => {
+                const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ phone, otp })
                 });
                 const data = await res.json();
-                if(data.data && data.data.token) {
-                    localStorage.setItem('pw_token', data.data.token);
-                    setToken(data.data.token);
-                    setStep('dashboard');
+                if(data.status) {
+                    localStorage.setItem('user', JSON.stringify(data.data));
+                    setUser(data.data);
                 } else {
-                    alert("Wrong OTP!");
+                    alert("Ghalat OTP!");
                 }
             };
 
+            useEffect(() => {
+                if(user) {
+                    fetch(`${API_URL}/api/batches`, {
+                        headers: { 'Authorization': `Bearer ${user.token}` }
+                    })
+                    .then(res => res.json())
+                    .then(json => setBatches(json.data || []));
+                }
+            }, [user]);
+
+            if (!user) {
+                return (
+                    <div className="flex items-center justify-center h-screen p-4">
+                        <div className="bg-gray-800 p-8 rounded-xl w-full max-w-md shadow-2xl border border-blue-500/30">
+                            <h2 className="text-2xl font-bold mb-6 text-center text-blue-400">Rahul Maida Login</h2>
+                            {step === 1 ? (
+                                <div>
+                                    <input type="text" placeholder="Phone Number" className="w-full p-3 bg-gray-700 rounded mb-4 outline-none border border-transparent focus:border-blue-500" value={phone} onChange={e => setPhone(e.target.value)} />
+                                    <button onClick={handleSendOtp} className="w-full bg-blue-600 p-3 rounded font-bold hover:bg-blue-700">Send OTP</button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <input type="text" placeholder="Enter OTP" className="w-full p-3 bg-gray-700 rounded mb-4 outline-none border border-transparent focus:border-blue-500" value={otp} onChange={e => setOtp(e.target.value)} />
+                                    <button onClick={handleVerifyOtp} className="w-full bg-green-600 p-3 rounded font-bold hover:bg-green-700">Verify & Login</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
             return (
-                <div className="flex items-center justify-center min-h-screen p-4">
-                    {step === 'login' && (
-                        <div className="glass p-8 rounded-2xl w-full max-w-md text-center">
-                            <h2 className="text-2xl font-bold mb-6 italic text-blue-400">Rahul Maida Study Login</h2>
-                            <p className="text-sm text-gray-400 mb-6 font-bold">PW Account Se Login Karein</p>
-                            <input type="text" placeholder="Phone Number (e.g. 9876543210)" 
-                                className="w-full p-3 rounded-lg mb-4" onChange={(e)=>setPhone(e.target.value)} />
-                            <button onClick={handleSendOTP} className="w-full bg-blue-600 py-3 rounded-lg font-bold">Get OTP</button>
-                        </div>
-                    )}
-
-                    {step === 'otp' && (
-                        <div className="glass p-8 rounded-2xl w-full max-w-md text-center">
-                            <h2 className="text-2xl font-bold mb-4">OTP Verification</h2>
-                            <p className="text-sm text-gray-400 mb-6">Enter OTP sent to {phone}</p>
-                            <input type="text" placeholder="6 Digit OTP" 
-                                className="w-full p-3 rounded-lg mb-4" onChange={(e)=>setOtp(e.target.value)} />
-                            <button onClick={handleVerifyOTP} className="w-full bg-green-600 py-3 rounded-lg font-bold">Verify & Start Study</button>
-                        </div>
-                    )}
-
-                    {step === 'dashboard' && (
-                        <div className="w-full max-w-6xl">
-                            <h1 className="text-3xl font-bold mb-8 italic">Welcome, Study Hard!</h1>
-                            {/* Yaha batches wala code aayega jo pehle diya tha */}
-                        </div>
-                    )}
+                <div className="p-6">
+                    <div className="flex justify-between mb-8 items-center bg-gray-800 p-4 rounded-lg">
+                        <h1 className="text-xl font-bold italic text-blue-400">Rahul Maida Study</h1>
+                        <button onClick={() => {localStorage.clear(); window.location.reload();}} className="text-red-400 text-sm">Logout</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {batches.map(b => (
+                            <div key={b._id} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                                <img src={b.batchImage} className="w-full h-40 object-cover" />
+                                <div className="p-4">
+                                    <h3 className="font-bold">{b.batchName}</h3>
+                                    <button className="mt-4 w-full bg-blue-600 py-2 rounded text-sm">Explore Content</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
         }
