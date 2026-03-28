@@ -9,18 +9,19 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-[#020617] text-white flex items-center justify-center min-h-screen">
+<body class="bg-[#030712] text-white flex items-center justify-center min-h-screen font-sans">
     <div id="root"></div>
+
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
         const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com";
 
-        // Generate a stable ID for this login attempt
-        const getSessionID = () => {
-            let id = sessionStorage.getItem('login_sid');
+        // Persistent Session ID (Must be SAME for send and verify)
+        const getSID = () => {
+            let id = sessionStorage.getItem('pw_sid');
             if(!id) {
-                id = "3d9274e0-556d-4700-ac12-" + Math.random().toString(16).slice(2, 14);
-                sessionStorage.setItem('login_sid', id);
+                id = "d3a2ab97-354d-4d80-bf3d-" + Math.random().toString(16).slice(2, 14);
+                sessionStorage.setItem('pw_sid', id);
             }
             return id;
         };
@@ -29,63 +30,74 @@
             const [phone, setPhone] = useState('');
             const [otp, setOtp] = useState('');
             const [step, setStep] = useState(1);
-            const [load, setLoad] = useState(false);
+            const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
 
-            const doSend = async () => {
-                setLoad(true); setError('');
+            // Auto-verify when 6 digits are entered
+            useEffect(() => {
+                if (otp.length === 6) handleVerify();
+            }, [otp]);
+
+            const handleSend = async () => {
+                if(phone.length !== 10) return setError("10-digit number bhej bhai!");
+                setLoading(true); setError('');
                 try {
-                    const res = await fetch(`${API_BASE}/api/login/send-otp`, {
+                    const r = await fetch(`${API_BASE}/api/login/send-otp`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone, randomId: getSessionID() })
+                        body: JSON.stringify({ phoneNumber: phone, randomId: getSID() })
                     });
-                    const d = await res.json();
-                    if(d.success) setStep(2); else setError(d.message || "OTP Send Failed");
-                } catch(e) { setError("Backend Offline"); }
-                setLoad(false);
+                    const d = await r.json();
+                    if(d.success) setStep(2); else setError(d.message || "OTP Bhejne me error!");
+                } catch(e) { setError("Backend se connection nahi ho raha!"); }
+                setLoading(false);
             };
 
-            const doVerify = async () => {
-                setLoad(true); setError('');
+            const handleVerify = async () => {
+                if(otp.length !== 6) return;
+                setLoading(true); setError('');
                 try {
-                    const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
+                    const r = await fetch(`${API_BASE}/api/login/verify-otp`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone, otp: otp, randomId: getSessionID() })
+                        body: JSON.stringify({ phoneNumber: phone, otp: otp, randomId: getSID() })
                     });
-                    const d = await res.json();
+                    const d = await r.json();
                     if(d.success) {
-                        alert("LOGIN SUCCESS!");
                         localStorage.setItem('token', d.data.token);
+                        alert("Bhai Gazab! Login Ho Gaya.");
                         window.location.reload();
-                    } else { setError(d.message || "Invalid OTP"); }
-                } catch(e) { setError("Verify Error"); }
-                setLoad(false);
+                    } else { setError(d.message || "Invalid OTP / Expired"); }
+                } catch(e) { setError("Verification failed!"); }
+                setLoading(false);
             };
 
             return (
-                <div className="bg-[#111827] p-8 rounded-3xl w-full max-w-sm border border-slate-800">
-                    <h1 className="text-xl font-bold text-center text-blue-500 mb-6 underline">STUDY PORTAL LOGIN</h1>
+                <div className="bg-[#111827] border border-slate-800 p-8 rounded-[2rem] w-full max-w-sm shadow-2xl">
+                    <h1 className="text-2xl font-black text-center text-blue-500 mb-8 tracking-tighter uppercase italic">Rahul Maida Study</h1>
                     
-                    {error && <div className="bg-red-900/30 text-red-400 p-3 rounded-lg text-sm mb-4 text-center border border-red-800">{error}</div>}
+                    {error && <div className="text-red-400 bg-red-900/20 p-3 rounded-xl mb-4 text-center text-sm border border-red-900/50">{error}</div>}
 
                     {step === 1 ? (
-                        <div className="space-y-4">
-                            <input type="tel" maxLength="10" placeholder="Mobile Number" className="w-full bg-black p-4 rounded-xl outline-none border border-slate-700 text-center text-xl" 
-                            onChange={e => setPhone(e.target.value)} />
-                            <button onClick={doSend} disabled={load} className="w-full bg-blue-600 p-4 rounded-xl font-bold active:bg-blue-800 disabled:opacity-50">
-                                {load ? "Sending..." : "Get OTP"}
+                        <div className="space-y-5">
+                            <input type="tel" maxLength="10" placeholder="Mobile Number" autoComplete="off"
+                                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-xl text-center outline-none focus:border-blue-600"
+                                value={phone} onChange={e => setPhone(e.target.value)}
+                            />
+                            <button onClick={handleSend} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-2xl font-bold transition-all disabled:opacity-50">
+                                {loading ? "Bheja ja raha hai..." : "Get OTP"}
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            <input type="text" maxLength="6" placeholder="Enter OTP" className="w-full bg-black p-4 rounded-xl outline-none border border-slate-700 text-center text-2xl tracking-widest" 
-                            autoComplete="off" onChange={e => setOtp(e.target.value)} />
-                            <button onClick={doVerify} disabled={load} className="w-full bg-green-600 p-4 rounded-xl font-bold active:bg-green-800 disabled:opacity-50">
-                                {load ? "Verifying..." : "Login Now"}
+                        <div className="space-y-5">
+                            <input type="text" maxLength="6" placeholder="******" autoComplete="one-time-code"
+                                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-4xl text-center tracking-[12px] outline-none focus:border-green-600"
+                                value={otp} onChange={e => setOtp(e.target.value)}
+                            />
+                            <button onClick={handleVerify} disabled={loading} className="w-full bg-green-600 hover:bg-green-700 p-4 rounded-2xl font-bold transition-all disabled:opacity-50">
+                                {loading ? "Check ho raha..." : "Verify & Login"}
                             </button>
-                            <p onClick={()=>setStep(1)} className="text-center text-gray-500 cursor-pointer text-sm">Wrong Number?</p>
+                            <p onClick={() => setStep(1)} className="text-center text-slate-500 cursor-pointer text-sm font-semibold">Change Number?</p>
                         </div>
                     )}
                 </div>
