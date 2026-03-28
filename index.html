@@ -3,114 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rahul Maida Study - Learning Portal</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <title>Rahul Maida Study</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; }
-        .glass { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .btn-grad { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); transition: 0.3s; }
-        .btn-grad:hover { opacity: 0.9; transform: translateY(-1px); }
+        body { background: #0f172a; color: white; margin: 0; }
+        .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        input::placeholder { color: #475569; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
-
-        // --- UPDATE THIS URL ---
+        const { useState } = React;
         const API_BASE = "https://rahulmaidastudy-backend-1.onrender.com"; 
 
         function App() {
-            const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
-            const [step, setStep] = useState('phone'); // phone, otp
+            const [step, setStep] = useState('phone'); 
             const [phone, setPhone] = useState('');
             const [otp, setOtp] = useState('');
             const [loading, setLoading] = useState(false);
+            const [isLogged, setIsLogged] = useState(false);
 
-            const sendOTP = async () => {
-                if(phone.length < 10) return alert("Please enter valid number");
+            const handleSend = async () => {
                 setLoading(true);
-                try {
-                    const res = await fetch(`${API_BASE}/api/login/send-otp`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone })
-                    });
-                    const data = await res.json();
-                    if(data.success) setStep('otp');
-                    else alert("Failed to send OTP. Try again.");
-                } catch (e) { alert("Backend starting... Wait 30 seconds"); }
+                const res = await fetch(`${API_BASE}/api/login/send-otp`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ phoneNumber: phone })
+                });
+                const data = await res.json();
+                if(data.success) { setStep('otp'); setOtp(''); }
+                else alert(data.message || "Failed to send OTP");
                 setLoading(false);
             };
 
-            const verifyOTP = async () => {
+            const handleVerify = async () => {
                 setLoading(true);
-                try {
-                    const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ phoneNumber: phone, otp: otp })
-                    });
-                    const data = await res.json();
-                    if(data.success) {
-                        localStorage.setItem('token', data.data.token);
-                        setIsLoggedIn(true);
-                    } else {
-                        alert("Wrong OTP!");
-                    }
-                } catch (e) { alert("Error verifying OTP"); }
+                const res = await fetch(`${API_BASE}/api/login/verify-otp`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ phoneNumber: phone, otp: otp })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    setIsLogged(true);
+                    localStorage.setItem('pw_token', data.data.token);
+                } else {
+                    alert(data.message || "Wrong OTP!");
+                }
                 setLoading(false);
             };
 
-            if (isLoggedIn) {
-                return (
-                    <div className="p-6">
-                        <nav className="flex justify-between items-center mb-10 border-b border-slate-700 pb-4">
-                            <h1 className="text-2xl font-bold text-blue-400">RAHUL MAIDA STUDY</h1>
-                            <button onClick={() => {localStorage.clear(); window.location.reload();}} className="text-red-400 text-sm">Logout</button>
-                        </nav>
-                        <div className="glass p-10 rounded-2xl text-center">
-                            <h2 className="text-3xl font-bold mb-4">Aapka Swagat Hai!</h2>
-                            <p className="text-slate-400">Login Successful. Aapka content load ho raha hai...</p>
-                        </div>
-                    </div>
-                );
-            }
+            if(isLogged) return (
+                <div className="p-10 text-center">
+                    <h1 className="text-3xl text-blue-400 font-bold mb-4">RAHUL MAIDA STUDY</h1>
+                    <div className="glass p-8 rounded-2xl">Login Success! Redirecting to batches...</div>
+                </div>
+            );
 
             return (
-                <div className="flex items-center justify-center min-h-screen p-4">
-                    <div className="glass p-8 rounded-3xl w-full max-w-sm">
-                        <h2 className="text-3xl font-bold mb-2 text-center text-blue-400">Rahul Maida Study</h2>
-                        <p className="text-slate-400 text-center mb-8 text-sm">Login with PW Mobile Number</p>
+                <div className="flex items-center justify-center min-h-screen p-4 bg-[#020617]">
+                    <div className="glass p-8 rounded-3xl w-full max-w-sm shadow-2xl">
+                        <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Rahul Maida Study</h2>
                         
                         {step === 'phone' ? (
-                            <div>
-                                <label className="block text-xs uppercase tracking-widest mb-2 text-slate-500 font-bold">Mobile Number</label>
-                                <input 
-                                    type="text" maxLength="10" placeholder="7701xxxxxx" 
-                                    className="w-full p-4 bg-slate-900/50 border border-slate-700 rounded-xl mb-6 text-white text-xl focus:border-blue-500 outline-none"
-                                    onChange={(e) => setPhone(e.target.value)}
-                                />
-                                <button onClick={sendOTP} disabled={loading} className="w-full btn-grad p-4 rounded-xl font-bold text-lg">
-                                    {loading ? 'Bheja ja raha hai...' : 'Get OTP'}
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-xs text-slate-500 font-bold uppercase block mb-2">Mobile Number</label>
+                                    <input 
+                                        type="tel" autoComplete="off" placeholder="Phone Number" 
+                                        className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-white text-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={phone} onChange={(e) => setPhone(e.target.value)}
+                                    />
+                                </div>
+                                <button onClick={handleSend} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold transition-all">
+                                    {loading ? 'Sending...' : 'Get OTP'}
                                 </button>
                             </div>
                         ) : (
-                            <div>
-                                <label className="block text-xs uppercase tracking-widest mb-2 text-slate-500 font-bold">Enter 6-Digit OTP</label>
-                                <input 
-                                    type="text" maxLength="6" placeholder="000000" 
-                                    className="w-full p-4 bg-slate-900/50 border border-slate-700 rounded-xl mb-6 text-white text-center text-3xl tracking-[10px] focus:border-blue-500 outline-none"
-                                    onChange={(e) => setOtp(e.target.value)}
-                                />
-                                <button onClick={verifyOTP} disabled={loading} className="w-full btn-grad p-4 rounded-xl font-bold text-lg">
-                                    {loading ? 'Checking...' : 'Verify & Login'}
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-xs text-slate-500 font-bold uppercase block mb-2">6-Digit OTP</label>
+                                    <input 
+                                        type="text" autoComplete="one-time-code" placeholder="Enter OTP" 
+                                        className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-white text-center text-2xl tracking-widest focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={otp} onChange={(e) => setOtp(e.target.value)}
+                                    />
+                                </div>
+                                <button onClick={handleVerify} disabled={loading} className="w-full bg-green-600 hover:bg-green-700 p-4 rounded-xl font-bold transition-all">
+                                    {loading ? 'Verifying...' : 'Verify Login'}
                                 </button>
-                                <button onClick={() => setStep('phone')} className="w-full mt-4 text-sm text-slate-500">Change Number</button>
+                                <button onClick={() => setStep('phone')} className="w-full text-sm text-slate-500">Back & Change Number</button>
                             </div>
                         )}
                     </div>
